@@ -12,7 +12,13 @@ fn main() {
     let short_urls = Arc::new(Mutex::new(HashMap::new()));
     short_urls.lock().unwrap().insert("rust".to_string(), "https://rust-lang.org".to_string());
 
-    server.get("/", middleware!("<h1>Nyanpassu!</h1>"));
+    let short_urls_clone = short_urls.clone();
+    server.get("/", middleware!{|_, response|
+        let mut data = HashMap::new();
+        let short_urls = short_urls_clone.lock().unwrap();
+        data.insert("url_count", short_urls.len().to_string());
+        return response.render("templates/index.tpl", &data);
+    });
 
     let short_urls_clone = short_urls.clone();
     server.get("/:shortkey", middleware! {|request, mut response|
