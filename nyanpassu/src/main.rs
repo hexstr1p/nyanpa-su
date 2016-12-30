@@ -14,7 +14,7 @@ use hyper::Url;
 use url::form_urlencoded;
 
 fn main() {
-    // let server_url = "http://nyanpas.su";
+    let server_url = "http://nyanpassu.moe";
     let mut server = Nickel::new();
     let short_urls = Arc::new(Mutex::new(HashMap::new()));
     short_urls.lock().unwrap().insert("rust".to_string(), "https://rust-lang.org".to_string());
