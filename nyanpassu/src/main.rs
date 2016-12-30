@@ -1,17 +1,20 @@
 #[macro_use] extern crate nickel;
 extern crate hyper;
 extern crate url;
+extern crate rand;
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use sid::io::Read;
-use nickel::{Nickel, HttpRouter};
+use std::io::Read;
+use rand::Rng;
+use nickel::{Nickel, HttpRouter, Mount, StaticFilesHandler};
 use nickel::status::StatusCode;
 use hyper::header::Location;
 use hyper::Url;
 use url::form_urlencoded;
 
 fn main() {
+    // let server_url = "http://nyanpas.su";
     let mut server = Nickel::new();
     let short_urls = Arc::new(Mutex::new(HashMap::new()));
     short_urls.lock().unwrap().insert("rust".to_string(), "https://rust-lang.org".to_string());
@@ -27,7 +30,7 @@ fn main() {
     let short_urls_clone = short_urls.clone();
     server.post("/shorten", middleware!{|request, response|
         let mut data = HashMap::new();
-        let short_urls = short_urls_clone.lock().unwrap();
+        let mut short_urls = short_urls_clone.lock().unwrap();
         data.insert("url_count", short_urls.len().to_string());
 
         let mut post_data = String::new();
@@ -37,14 +40,20 @@ fn main() {
         let url = form.get("url").unwrap_or(&"".to_string()).to_string();
         if url != "" {
             if Url::parse(&url).is_ok() {
-                data.insert("result", "this is a good url".to_string());
+                let mut key = gen_rand_string(8);
+                while short_urls.contains_key(&key) {
+                    key = gen_rand_string(8);
+                }
+                short_urls.insert(key.clone(), url);
+                data.insert("result", format!("じゃん〜：http://127.0.0.1:7000/{}", &key));
+                // data.insert("result", format!("じゃん〜：{}/{}", server_url, &key));
             }
             else {
                 data.insert("result", "not a good url".to_string());
             }
         }
         else {
-            data.insert("result", "enter a url".to_string()):
+            data.insert("result", "enter a url".to_string());
         }
         return response.render("templates/index.tpl", &data);
     });
@@ -63,14 +72,21 @@ fn main() {
             return response.send("short url not found");
         }
     });
+
+    server.utilize(Mount::new("/static/", StaticFilesHandler::new("/static_files/")));
+
     server.listen("127.0.0.1:7000");
+}
+
+fn gen_rand_string(size: usize) -> String {
+    return rand::thread_rng().gen_ascii_chars().take(size).collect();
 }
 
 fn parse_form(form_data: &[u8]) -> HashMap<String, String> {
     let mut hashmap = HashMap::new();
     let parsed_form = form_urlencoded::parse(form_data);
     for (key, value) in parsed_form {
-        hashmap.insert(key, value);
+        hashmap.insert(key.to_string(), value.to_string());
     }
     return hashmap;
 }
